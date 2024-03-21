@@ -1,3 +1,7 @@
+import os
+import sys
+import pyspark as spark
+
 staticDataFrame = spark.read.format("csv")\
   .option("header", "true")\
   .option("inferSchema", "true")\
@@ -6,6 +10,8 @@ staticDataFrame = spark.read.format("csv")\
 staticDataFrame.createOrReplaceTempView("retail_data")
 staticSchema = staticDataFrame.schema
 
+#We don't need more than 5 partitions
+spark.conf.set("spark.sql.shuffle.partitions", "5")
 
 # COMMAND ----------
 
@@ -24,6 +30,7 @@ staticDataFrame\
 
 # COMMAND ----------
 
+#maxFilesPerTrigger likely omitted in real stream
 streamingDataFrame = spark.readStream\
     .schema(staticSchema)\
     .option("maxFilesPerTrigger", 1)\
@@ -31,9 +38,10 @@ streamingDataFrame = spark.readStream\
     .option("header", "true")\
     .load("/data/retail-data/by-day/*.csv")
 
+#streamingDataFrame.isStreaming #will return true if streaming
 
 # COMMAND ----------
-
+#This doesn't start the execution because lazy eval, need to call streaming action (writeStream)
 purchaseByCustomerPerHour = streamingDataFrame\
   .selectExpr(
     "CustomerId",
